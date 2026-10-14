@@ -42,7 +42,9 @@ build)
   exec autoninja -C out/Release chrome
   ;;
 package)
-  ditto -c -k --keepParent "$ROOT/src/out/Release/Chromium.app" "$2"
+  # no extended attributes: ditto stores them as ._* files, which unzip
+  # extracts as real files, and codesign then rejects the bundle
+  ditto -c -k --norsrc --noextattr --keepParent "$ROOT/src/out/Release/Chromium.app" "$2"
   ;;
 pack)
   # pax keeps the file times with full precision; the build tool compares them
