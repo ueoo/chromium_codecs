@@ -1,0 +1,22 @@
+name: probe
+on: workflow_dispatch
+jobs:
+  probe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-26, macos-15, macos-26-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - run: |
+          set -x
+          sw_vers; uname -m
+          sysctl -n hw.ncpu hw.memsize machdep.cpu.brand_string
+          df -h / /System/Volumes/Data
+          xcode-select -p; xcodebuild -version
+          for x in /Applications/Xcode*.app; do echo "$x -> $(readlink "$x" || true) : $(ls "$x/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs" | tr '\n' ' ')"; done
+          command -v gtimeout timeout zstd gtar python3 git jq gh || true
+          git --version; python3 --version
+          sudo du -sh /Users/runner/Library/Android /Users/runner/hostedtoolcache /Library/Developer/CoreSimulator /Users/runner/Library/Developer /opt/homebrew /usr/local/share 2>/dev/null || true
+          curl -o /dev/null -sS -r 0-300000000 -w 'download %{speed_download} bytes/s\n' https://storage.googleapis.com/chromium-browser-snapshots/Mac_Arm/1718260/chrome-mac.zip
+          dd if=/dev/zero of=ddtest bs=1m count=3000 2>&1 | tail -1; rm ddtest
