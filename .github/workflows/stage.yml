@@ -43,12 +43,17 @@ jobs:
           HOMEBREW_NO_INSTALL_CLEANUP: 1
         run: |
           sudo mdutil -a -i off > /dev/null || true
-          # The build needs about 70 GB. Remove what it does not use.
+          # The work directory and the state archive need about 60 GB, and the
+          # runner has about 38 GB free. Remove what the build does not use.
           keep="$(realpath /Applications/Xcode.app)"
           for x in /Applications/Xcode*.app; do
             [[ -L "$x" || "$x" == "$keep" ]] || sudo rm -rf "$x"
           done
-          sudo rm -rf /Users/runner/Library/Android /Users/runner/hostedtoolcache
+          sudo rm -rf /Users/runner/Library/Android /Users/runner/hostedtoolcache /Users/runner/.dotnet \
+            "/Applications/Google Chrome.app" "/Applications/Google Chrome for Testing.app" \
+            "/Applications/Microsoft Edge.app" /Applications/Firefox.app
+          # Since Xcode 26 the Metal compiler is a separate download. ANGLE needs it.
+          xcodebuild -downloadComponent MetalToolchain
           brew install coreutils
           xcodebuild -version
           df -h /System/Volumes/Data

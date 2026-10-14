@@ -20,6 +20,9 @@ fetch)
   [[ -d depot_tools ]] || git clone -q https://chromium.googlesource.com/chromium/tools/depot_tools.git
   [[ -f .gclient ]] || gclient config --unmanaged --name src https://chromium.googlesource.com/chromium/src.git
   gclient sync --no-history --revision "src@$2"
+  # The build does not use the git data (about 4 GB). Remove it before gn gen,
+  # as in a source tarball, so that the state archive is smaller.
+  find src -name .git -prune -exec rm -rf {} +
   cd src
   # GN args of the official snapshot builder (mac-arm64-archive-rel), without
   # remote execution, plus the two codec args. symbol_level=0 and
