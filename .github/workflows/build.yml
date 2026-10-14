@@ -1,0 +1,118 @@
+name: build
+
+on:
+  schedule:
+    - cron: '23 9 * * 6' # every Saturday, 09:23 UTC
+  workflow_dispatch:
+    inputs:
+      rev:
+        description: 'Snapshot revision (default: the latest official arm64 snapshot)'
+        type: string
+      minutes:
+        description: Maximum build minutes per stage
+        type: string
+        default: '300'
+
+permissions:
+  contents: write
+
+concurrency: build
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      sha: ${{ steps.plan.outputs.sha }}
+      tag: ${{ steps.plan.outputs.tag }}
+    steps:
+      - id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REV: ${{ inputs.rev }}
+        run: |
+          # The latest official snapshot is a revision that the Chromium CI compiled.
+          rev="${REV:-$(curl -fsSL 'https://download-chromium.appspot.com/rev/Mac_Arm?type=snapshots' | jq -r .content)}"
+          sha="$(curl -fsSL "https://cr-rev.appspot.com/_ah/api/crrev/v1/redirect/$rev" | jq -r .git_sha)"
+          # chrome/VERSION has the lines MAJOR=158 MINOR=0 BUILD=8104 PATCH=0
+          version="$(curl -fsSL "https://chromium.googlesource.com/chromium/src/+/$sha/chrome/VERSION?format=TEXT" | base64 -d | cut -d= -f2 | paste -sd. -)"
+          tag="$version-r$rev"
+          echo "revision $rev, commit $sha, release $tag"
+          [[ "$sha" =~ ^[0-9a-f]{40}$ && "$version" =~ ^[0-9]+(\.[0-9]+){3}$ ]]
+          if gh release view "$tag" -R "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            echo "release $tag exists already"
+            exit 1
+          fi
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+  # A chain of stages. Each stage after the first runs only if the stage before
+  # it stopped because its time was up.
+  stage1:
+    needs: plan
+    uses: ./.github/workflows/stage.yml
+    with:
+      sha: ${{ needs.plan.outputs.sha }}
+      minutes: ${{ inputs.minutes || '300' }}
+  stage2:
+    needs: stage1
+    if: needs.stage1.outputs.done == 'false'
+    uses: ./.github/workflows/stage.yml
+    with:
+      resume: true
+      minutes: ${{ inputs.minutes || '300' }}
+  stage3:
+    needs: stage2
+    if: needs.stage2.outputs.done == 'false'
+    uses: ./.github/workflows/stage.yml
+    with:
+      resume: true
+      minutes: ${{ inputs.minutes || '300' }}
+  stage4:
+    needs: stage3
+    if: needs.stage3.outputs.done == 'false'
+    uses: ./.github/workflows/stage.yml
+    with:
+      resume: true
+      minutes: ${{ inputs.minutes || '300' }}
+  stage5:
+    needs: stage4
+    if: needs.stage4.outputs.done == 'false'
+    uses: ./.github/workflows/stage.yml
+    with:
+      resume: true
+      minutes: ${{ inputs.minutes || '300' }}
+  stage6:
+    needs: stage5
+    if: needs.stage5.outputs.done == 'false'
+    uses: ./.github/workflows/stage.yml
+    with:
+      resume: true
+      minutes: ${{ inputs.minutes || '300' }}
+
+  release:
+    needs: [plan, stage1, stage2, stage3, stage4, stage5, stage6]
+    # Also run when later stages were skipped. If no stage completed the build,
+    # the download step fails, and the run shows as failed.
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
+        with:
+          name: chromium
+      - name: Publish the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ needs.plan.outputs.tag }}
+          SHA: ${{ needs.plan.outputs.sha }}
+        run: |
+          gh release create "$TAG" Chromium-arm64.zip --title "Chromium $TAG" --notes "Plain Chromium for macOS arm64 with H.264, AAC, and HEVC. Source: https://chromium.googlesource.com/chromium/src/+/$SHA"
+          # keep the 4 newest releases
+          gh release list --limit 100 --json tagName -q '.[4:][].tagName' | xargs -r -n1 gh release delete --cleanup-tag -y
+          # GitHub disables the schedule of a repo with no activity for 60 days, so record each build in a commit.
+          echo "$TAG" > LATEST
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add LATEST
+          git commit -m "Build $TAG"
+          git push

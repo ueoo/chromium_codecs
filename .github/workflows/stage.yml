@@ -1,0 +1,117 @@
+name: stage
+
+# One build stage. A GitHub-hosted job can run for 6 hours, and the Chromium
+# build needs more on the free 3-core runner. Each stage builds until its time
+# is up, then hands the work directory to the next stage as an artifact.
+
+on:
+  workflow_call:
+    inputs:
+      sha:
+        description: Commit of chromium/src (first stage only)
+        type: string
+      resume:
+        description: Continue from the state of the previous stage
+        type: boolean
+        default: false
+      minutes:
+        description: Maximum build minutes in this stage
+        type: string
+        default: '300'
+    outputs:
+      done:
+        description: "'true' when the build is complete"
+        value: ${{ jobs.stage.outputs.done }}
+
+jobs:
+  stage:
+    # macOS 27 with Xcode 27. The official Chromium builders use the macOS 27.0 SDK.
+    # The label is a public preview; use macos-27 when that label exists.
+    runs-on: xcode-27
+    timeout-minutes: 358
+    outputs:
+      done: ${{ steps.build.outputs.done }}
+    steps:
+      - name: Record the start time
+        run: echo "T0=$(date +%s)" >> "$GITHUB_ENV"
+
+      - uses: actions/checkout@v7
+
+      - name: Prepare the runner
+        env:
+          HOMEBREW_NO_AUTO_UPDATE: 1
+          HOMEBREW_NO_INSTALL_CLEANUP: 1
+        run: |
+          sudo mdutil -a -i off > /dev/null || true
+          # The build needs about 70 GB. Remove what it does not use.
+          keep="$(realpath /Applications/Xcode.app)"
+          for x in /Applications/Xcode*.app; do
+            [[ -L "$x" || "$x" == "$keep" ]] || sudo rm -rf "$x"
+          done
+          sudo rm -rf /Users/runner/Library/Android /Users/runner/hostedtoolcache
+          brew install coreutils
+          xcodebuild -version
+          df -h /System/Volumes/Data
+
+      - name: Fetch the source
+        if: ${{ !inputs.resume }}
+        run: ./build.sh fetch "${{ inputs.sha }}"
+
+      - name: Download the build state
+        if: ${{ inputs.resume }}
+        uses: actions/download-artifact@v8
+        with:
+          name: state
+
+      - name: Restore the build state
+        if: ${{ inputs.resume }}
+        run: |
+          ./build.sh unpack state.tar.zst
+          rm state.tar.zst
+
+      - name: Build
+        id: build
+        run: |
+          # Keep 50 minutes of the 6 hours for the steps after the build.
+          left=$(( 360 - ($(date +%s) - T0) / 60 - 50 ))
+          minutes=$(( left < ${{ inputs.minutes }} ? left : ${{ inputs.minutes }} ))
+          echo "build time in this stage: $minutes minutes"
+          rc=0
+          ./build.sh build "$minutes" || rc=$?
+          case $rc in
+            0) echo "done=true" >> "$GITHUB_OUTPUT" ;;
+            124 | 137) echo "done=false" >> "$GITHUB_OUTPUT" ;;
+            *) exit "$rc" ;;
+          esac
+          df -h /System/Volumes/Data
+
+      - name: Pack the build state
+        if: steps.build.outputs.done == 'false'
+        run: |
+          ./build.sh pack state.tar.zst
+          ls -lh state.tar.zst
+
+      - name: Upload the build state
+        if: steps.build.outputs.done == 'false'
+        uses: actions/upload-artifact@v7
+        with:
+          name: state
+          path: state.tar.zst
+          overwrite: true
+          retention-days: 2
+          compression-level: 0
+
+      - name: Package the app
+        if: steps.build.outputs.done == 'true'
+        run: |
+          ./build.sh package Chromium-arm64.zip
+          ls -lh Chromium-arm64.zip
+
+      - name: Upload the app
+        if: steps.build.outputs.done == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: chromium
+          path: Chromium-arm64.zip
+          retention-days: 7
+          compression-level: 0
