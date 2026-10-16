@@ -106,7 +106,7 @@ jobs:
           TAG: ${{ needs.plan.outputs.tag }}
           SHA: ${{ needs.plan.outputs.sha }}
         run: |
-          gh release create "$TAG" Chromium-arm64.zip --title "Chromium $TAG" --notes "Plain Chromium for macOS arm64 with H.264, AAC, and HEVC. Source: https://chromium.googlesource.com/chromium/src/+/$SHA"
+          gh release create "$TAG" Chromium-arm64.zip --title "Chromium $TAG" --notes "Chromium for macOS arm64 with H.264, AAC, and HEVC, and the source patches in patches/. Source: https://chromium.googlesource.com/chromium/src/+/$SHA"
           # keep the 4 newest releases
           gh release list --limit 100 --json tagName -q '.[4:][].tagName' | xargs -r -n1 gh release delete --cleanup-tag -y
           # GitHub disables the schedule of a repo with no activity for 60 days, so record each build in a commit.

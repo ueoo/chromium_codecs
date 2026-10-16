@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# build.sh — build plain Chromium for macOS arm64 with the proprietary media codecs.
+# build.sh — build Chromium for macOS arm64 with the proprietary media codecs.
 #
-#   ./build.sh fetch <sha>     depot_tools + shallow checkout of chromium/src at <sha> + gn gen
+#   ./build.sh fetch <sha>     depot_tools + shallow checkout of chromium/src at <sha>
+#                              + patches/*.patch + gn gen
 #   ./build.sh build [min]     build the "chrome" target; with [min], stop after that many
 #                              minutes and exit with 124 (run "build" again to continue)
 #   ./build.sh package <zip>   zip out/Release/Chromium.app
@@ -10,6 +11,7 @@
 #
 # The work directory is $ROOT (default: ./work). It grows to about 55 GB.
 set -euo pipefail
+HERE="$(cd "$(dirname "$0")" && pwd)"
 ROOT="${ROOT:-$PWD/work}"
 # keep the depot_tools state inside the work directory
 export PATH="$ROOT/depot_tools:$PATH" DEPOT_TOOLS_METRICS=0 VPYTHON_VIRTUALENV_ROOT="$ROOT/.vpython-root"
@@ -20,6 +22,8 @@ fetch)
   [[ -d depot_tools ]] || git clone -q https://chromium.googlesource.com/chromium/tools/depot_tools.git
   [[ -f .gclient ]] || gclient config --unmanaged --name src https://chromium.googlesource.com/chromium/src.git
   gclient sync --no-history --revision "src@$2"
+  # A patch that no longer applies stops the build here, before the long compile.
+  for p in "$HERE"/patches/*.patch; do git -C src apply "$p"; done
   # The build does not use the git data (about 4 GB). Remove it before gn gen,
   # as in a source tarball, so that the state archive is smaller.
   find src -name .git -prune -exec rm -rf {} +

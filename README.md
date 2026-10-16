@@ -1,13 +1,19 @@
 # chromium_codecs
 
-Weekly macOS arm64 builds of plain Chromium with the proprietary media codecs
+Weekly macOS arm64 builds of Chromium with the proprietary media codecs
 (H.264, AAC, HEVC).
 
 The official Chromium snapshots are built with `proprietary_codecs=false`.
 That switch is compile-time. This repo builds the revision of the latest
 official arm64 snapshot with the GN args of the official snapshot builder
 (`mac-arm64-archive-rel`) plus `proprietary_codecs=true ffmpeg_branding="Chrome"`.
-No other change: no patches, no Google branding.
+No Google branding.
+
+One source patch, in `patches/`:
+`straight-vertical-tab-separator.patch` removes the two curved corners beside
+the vertical tab strip, so that the separator is one straight line.
+If a new Chromium revision changes that code, the patch does not apply, and
+the build stops at `fetch`.
 
 ## Download
 
@@ -21,7 +27,7 @@ quarantine flag, so the app starts without a Gatekeeper prompt.
 `build.sh` holds all build steps. It also runs on a local Mac:
 
 ```sh
-./build.sh fetch <sha>   # depot_tools + shallow checkout of chromium/src + gn gen
+./build.sh fetch <sha>   # depot_tools + shallow checkout of chromium/src + patches + gn gen
 ./build.sh build         # about 75 minutes on an M3 Max
 ./build.sh package Chromium-arm64.zip
 ```

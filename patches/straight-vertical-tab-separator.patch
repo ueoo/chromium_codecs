@@ -1,0 +1,39 @@
+--- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
++++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
+@@ -994,9 +994,9 @@
+                    views().browser_view)) {
+     gfx::Rect corner_bounds;
+     const double top_corner = layout_data_->vertical_tabs_top_corner();
+-    const bool top_corner_visible =
+-        layout_data_->tab_strip_type == TabStripType::kVertical &&
+-        top_corner > 0.0;
++    // chromium_codecs: no curved corner beside the vertical tab strip, so
++    // that the separator is one straight line.
++    const bool top_corner_visible = false;
+ 
+     // The top corner is drawn when the tabstrip goes all the way to the top.
+     if (top_corner_visible) {
+@@ -1017,9 +1017,9 @@
+                    views().browser_view)) {
+     gfx::Rect corner_bounds;
+     const double bottom_corner = layout_data_->vertical_tabs_bottom_corner();
+-    const bool bottom_corner_visible =
+-        layout_data_->tab_strip_type == TabStripType::kVertical &&
+-        bottom_corner > 0.0;
++    // chromium_codecs: no curved corner beside the vertical tab strip, so
++    // that the separator is one straight line.
++    const bool bottom_corner_visible = false;
+     if (bottom_corner_visible) {
+       auto preferred =
+           views().vertical_tab_strip_bottom_corner->GetPreferredSize();
+@@ -1584,8 +1584,8 @@
+       // Note that this will set a lower leading corner on the multi contents
+       // view even if there's a shadow box, but since the curve is effectively
+       // the same this will not produce a visual bug.
+-      const int radius =
+-          views().vertical_tab_strip_bottom_corner->GetCornerRadius();
++      // chromium_codecs: square content corner beside the vertical tab strip.
++      const int radius = 0;
+       if (base::i18n::IsRTL()) {
+         content_corners.set_lower_right(radius);
+       } else {
