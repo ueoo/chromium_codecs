@@ -9,10 +9,13 @@ official arm64 snapshot with the GN args of the official snapshot builder
 (`mac-arm64-archive-rel`) plus `proprietary_codecs=true ffmpeg_branding="Chrome"`.
 No Google branding.
 
-One source patch, in `patches/`:
-`straight-vertical-tab-separator.patch` removes the two curved corners beside
-the vertical tab strip, so that the separator is one straight line.
-If a new Chromium revision changes that code, the patch does not apply, and
+Source patches, in `patches/`:
+- `straight-vertical-tab-separator.patch` removes the two curved corners beside
+  the vertical tab strip, so that the separator is one straight line.
+- `disable-omnibox-everywhere.patch` keeps the OmniboxEverywhere feature off,
+  so that there is no "Search with Chromium" item in the macOS menu bar.
+
+If a new Chromium revision changes that code, a patch does not apply, and
 the build stops at `fetch`.
 
 ## Download

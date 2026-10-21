@@ -1,0 +1,16 @@
+--- a/chrome/browser/ui/omnibox/omnibox_next_features.cc
++++ b/chrome/browser/ui/omnibox/omnibox_next_features.cc
+@@ -122,7 +122,12 @@ BASE_FEATURE(kWebUIOmniboxAimPopupDisableAnimation, DISABLED);
+ // passing click events through the WebView.
+ BASE_FEATURE(kWebUIOmniboxFullPopupDoubleClick, ENABLED);
+ // If enabled, enables OmniboxEverywhere popup triggered by shortcut.
+-BASE_FEATURE(kOmniboxEverywhere, DISABLED);
++// chromium_codecs: the field-trial testing config turns this feature on by
++// its name. With another name, it stays off, so that there is no "Search
++// with Chromium" menu bar item.
++BASE_FEATURE(kOmniboxEverywhere,
++             "OmniboxEverywhereRemovedByChromiumCodecs",
++             base::FEATURE_DISABLED_BY_DEFAULT);
+ // If enabled, submitting a query with screenshots attached in Omnibox
+ // Everywhere opens the result in a new browser window aligned with the
+ // Omnibox Everywhere popup.
