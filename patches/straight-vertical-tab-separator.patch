@@ -1,6 +1,51 @@
 --- a/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
 +++ b/chrome/browser/ui/views/frame/layout/browser_view_tabbed_layout_impl.cc
-@@ -994,9 +994,9 @@
+@@ -201,6 +201,9 @@
+   bool adjust_for_missing_separator = false;
+   // Whether to pad the top of the side panel.
+   bool side_panel_top_padding = false;
++  // chromium_codecs: true if the top container separator also spans the
++  // collapsed vertical tab strip below the toolbar.
++  bool top_container_separator_spans_tab_strip = false;
+ };
+ 
+ // Describes how to transform the side panel animation content during
+@@ -302,6 +305,20 @@
+       info.side_panel_top_padding = !is_force_to_top;
+       info.adjust_for_missing_separator =
+           suppress_separator && would_have_separator;
++      // chromium_codecs: when the vertical tab strip is collapsed below the
++      // toolbar, the top container also covers the tab strip. Draw the line
++      // under the toolbar in the top container, so that the line spans the
++      // tab strip too and is one straight line.
++      if (!suppress_separator && would_have_separator &&
++          layout_data_->tab_strip_type == TabStripType::kVertical &&
++          GetVerticalTabStripCollapsedState() ==
++              VerticalTabStripCollapsedState::kCollapsed &&
++          layout_data_->vertical_tab_strip_animation.top_offset > 0 &&
++          !delegate().IsBookmarkBarVisible()) {
++        info.multi_contents_separator = false;
++        info.top_container_separator = true;
++        info.top_container_separator_spans_tab_strip = true;
++      }
+       break;
+     }
+     case WindowState::kFullscreen:
+@@ -945,6 +962,13 @@
+ 
+       if (layout_data_->window_state == WindowState::kFullscreenWithToolbar &&
+           layout_data_->separator_info.adjust_for_missing_separator) {
++        vertical_tab_strip_bounds.Inset(
++            gfx::Insets::TLBR(views::Separator::kThickness, 0, 0, 0));
++      }
++
++      // chromium_codecs: start below the line under the toolbar.
++      if (layout_data_->separator_info
++              .top_container_separator_spans_tab_strip) {
+         vertical_tab_strip_bounds.Inset(
+             gfx::Insets::TLBR(views::Separator::kThickness, 0, 0, 0));
+       }
+@@ -1003,9 +1027,9 @@
                     views().browser_view)) {
      gfx::Rect corner_bounds;
      const double top_corner = layout_data_->vertical_tabs_top_corner();
@@ -13,7 +58,7 @@
  
      // The top corner is drawn when the tabstrip goes all the way to the top.
      if (top_corner_visible) {
-@@ -1017,9 +1017,9 @@
+@@ -1026,9 +1050,9 @@
                     views().browser_view)) {
      gfx::Rect corner_bounds;
      const double bottom_corner = layout_data_->vertical_tabs_bottom_corner();
@@ -26,7 +71,22 @@
      if (bottom_corner_visible) {
        auto preferred =
            views().vertical_tab_strip_bottom_corner->GetPreferredSize();
-@@ -1584,8 +1584,8 @@
+@@ -1069,6 +1093,14 @@
+           gfx::Outsets::TLBR(0, collapsed_vertical_tab_strip_adjustment, 0, 0));
+       for (auto& [child, child_layout] : top_container_layout.children) {
+         if (!child_layout.bounds.IsEmpty()) {
++          // chromium_codecs: the line under the toolbar spans the tab strip.
++          if (child == views().top_container_separator &&
++              layout_data_->separator_info
++                  .top_container_separator_spans_tab_strip) {
++            child_layout.bounds.Outset(gfx::Outsets::TLBR(
++                0, 0, 0, collapsed_vertical_tab_strip_adjustment));
++            continue;
++          }
+           child_layout.bounds.Offset(collapsed_vertical_tab_strip_adjustment,
+                                      0);
+         }
+@@ -1593,8 +1625,8 @@
        // Note that this will set a lower leading corner on the multi contents
        // view even if there's a shadow box, but since the curve is effectively
        // the same this will not produce a visual bug.
@@ -37,3 +97,14 @@
        if (base::i18n::IsRTL()) {
          content_corners.set_lower_right(radius);
        } else {
+@@ -1725,6 +1757,10 @@
+     if (animation.expand_on_hover_width > 0.0) {
+       vertical_tabs_outline.bottom = true;
+     }
++    // chromium_codecs: the line under the toolbar already spans the tab strip.
++    if (layout_data_->separator_info.top_container_separator_spans_tab_strip) {
++      vertical_tabs_outline.top = false;
++    }
+     vertical_tabs_background->SetOutline(vertical_tabs_outline);
+ 
+     // Cut the vertical tab strip out of the top container.

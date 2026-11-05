@@ -11,7 +11,9 @@ No Google branding.
 
 Source patches, in `patches/`:
 - `straight-vertical-tab-separator.patch` removes the two curved corners beside
-  the vertical tab strip, so that the separator is one straight line.
+  the vertical tab strip, so that the separator is one straight line. When the
+  tab strip is collapsed below the toolbar, the line under the toolbar also
+  spans the tab strip.
 - `disable-omnibox-everywhere.patch` keeps the OmniboxEverywhere feature off,
   so that there is no "Search with Chromium" item in the macOS menu bar.
 
