@@ -1,0 +1,12 @@
+--- a/base/check.cc
++++ b/base/check.cc
+@@ -65,6 +65,5 @@
+ #else
+-  // Crash outside official builds (outside user-facing builds) to detect
+-  // invariant violations early in release-build testing like fuzzing, etc.
+-  // These should eventually be migrated to fatal CHECKs.
+-  return LOGGING_FATAL;
++  // chromium_codecs: this build is for daily use, so do as official builds
++  // (Google Chrome) do: log the failure and write a dump, but do not crash.
++  return DCHECK_IS_ON() ? LOGGING_DCHECK : LOGGING_ERROR;
+ #endif

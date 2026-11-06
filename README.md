@@ -10,6 +10,11 @@ official arm64 snapshot with the GN args of the official snapshot builder
 No Google branding.
 
 Source patches, in `patches/`:
+- `chrome-check-severity.patch` makes the CHECKs that are "not fatal yet"
+  (`NotFatalUntil`, `DUMP_WILL_BE_CHECK`, `DUMP_WILL_BE_NOTREACHED`) log the
+  failure and write a dump, as in Google Chrome. Without it, a non-official
+  build crashes on them. Example: an app that reads text through the macOS
+  accessibility API made the browser abort in `ui/accessibility/ax_position.h`.
 - `straight-vertical-tab-separator.patch` removes the two curved corners beside
   the vertical tab strip, so that the separator is one straight line. When the
   tab strip is collapsed below the toolbar, the line under the toolbar also
